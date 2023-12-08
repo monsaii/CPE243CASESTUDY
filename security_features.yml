@@ -1,0 +1,150 @@
+---
+- name: Security Configuration with System Update
+  hosts: infosys_demo
+  become: yes
+
+  tasks:
+    - name: Update apt package cache
+      apt:
+        update_cache: yes
+
+    - name: Upgrade all packages
+      apt:
+        upgrade: yes
+        autoremove: yes
+
+
+    - name: Install UFW
+      apt:
+        name: ufw
+        state: present
+
+
+    - name: Allow SSH (change port if needed)
+      ufw:
+        rule: allow
+        name: "OpenSSH"
+        port: 22
+
+    - name: Reload UFW
+      shell: ufw reload
+
+    - name: Add Suricata repository
+      apt_repository:
+        repo: 'ppa:oisf/suricata-stable'
+        state: present
+
+    - name: update apt cache
+      apt:
+        update_cache: yes
+
+    - name: Install Suricata and jq
+      apt:
+        name: "{{ item }}"
+        state: present
+      loop:
+        - suricata
+        - jq
+
+
+    - name: Install OpenVAS
+      apt:
+        name: openvas
+        state: present
+
+    - name: Install Fail2Ban for SSH protection
+      apt:
+        name: fail2ban
+        state: present
+
+    - name: Start fail2ban
+      service:
+        name: fail2ban
+        state: started
+        enabled: yes
+
+
+    - name: Install rsyslog
+      apt:
+        name: rsyslog
+        state: present
+
+    - name: Install LUKS
+      apt:
+        name: cryptsetup
+        state: present
+
+
+    - name: Install Git
+      apt:
+        name: git
+        state: present
+
+    - name: Install dependencies for Snort 3
+      apt:
+        name: "{{ item }}"
+        state: present
+      loop:
+        - build-essential
+        - libpcap-dev
+        - libpcre3-dev
+        - libnet1-dev
+        - zlib1g-dev
+        - luajit
+        - hwloc
+        - libdnet-dev
+        - libdumbnet-dev
+        - bison
+        - flex
+        - liblzma-dev
+        - openssl
+        - libssl-dev
+        - pkg-config
+        - libhwloc-dev
+        - cmake
+        - cpputest
+        - libsqlite3-dev
+        - uuid-dev
+        - libcmocka-dev
+        - libnetfilter-queue-dev
+        - libmnl-dev
+        - autotools-dev
+        - libluajit-5.1-dev
+        - libunwind-dev
+        - libfl-dev
+
+    - name: Create source directory for Snort
+      file:
+        path: "~/snort_src"
+        state: directory
+
+    - name: Change to Snort source directory
+      shell: "cd ~/snort_src"
+
+    - name: Clone and install Snort DAQ
+      git:
+        repo: https://github.com/snort3/libdaq.git
+
+        dest: "~/snort_src/libdaq"
+      become: true
+    - name: Build and install Snort DAQ
+      shell:
+        cmd: |
+          cd ~/snort_src/libdaq
+          ./bootstrap
+          ./configure
+          make
+          make install
+
+    - name: Download and install Google's Tcmalloc
+      shell:
+        cmd: |
+          cd ~/snort_src
+          wget https://github.com/gperftools/gperftools/releases/download/gperftools-2.9.1/gperftools-2.9.1.tar.gz
+
+          tar xzf gperftools-2.9.1.tar.gz
+          cd gperftools-2.9.1/
+          ./configure
+          make
+          make install
+
